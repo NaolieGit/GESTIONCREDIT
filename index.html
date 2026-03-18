@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion Crédit — Gestionnaire de Dossiers</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0D1117;
+    --paper: #F5F2ED;
+    --cream: #EDE9E1;
+    --gold: #C9A84C;
+    --gold-light: #E8D5A3;
+    --rust: #B85C38;
+    --forest: #2C5F2E;
+    --forest-light: #4A8C4D;
+    --mist: #8B8680;
+    --border: #D4CFC7;
+    --white: #FFFFFF;
+    --danger: #C0392B;
+    --shadow: 0 2px 12px rgba(13,17,23,0.08);
+    --shadow-lg: 0 8px 32px rgba(13,17,23,0.14);
+  }
+  html { font-size: 15px; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
+
+  
+  .app-shell { display: flex; min-height: 1cqb; }
+  .sidebar {
+    width: 260px; min-height: 100vh; background: var(--ink);
+    padding: 0; display: flex; flex-direction: column;
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .logo-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--gold); color: var(--ink);
+    padding: 6px 12px 6px 8px; border-radius: 6px;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem;
+  }
+  .logo-dot { width: 8px; height: 8px; background: var(--ink); border-radius: 50%; }
+  .sidebar-subtitle { color: rgba(255,255,255,0.4); font-size: 0.7rem; margin-top: 8px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .sidebar-nav { padding: 20px 12px; flex: 1; }
+  .nav-section-label { color: rgba(255,255,255,0.3); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0 12px; margin-bottom: 8px; margin-top: 16px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    color: rgba(255,255,255,0.6); font-size: 0.88rem; font-weight: 500;
+    transition: all 0.15s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+  .nav-item.active { background: var(--gold); color: var(--ink); }
+  .nav-item .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+  .nav-badge { margin-left: auto; background: var(--rust); color: white; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+  .nav-badge.green { background: var(--forest-light); }
+  .sidebar-footer { padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); font-size: 0.72rem; }
+
+  .main-content { margin-left: 260px; flex: 1; padding: 0; }
+  .topbar {
+    background: var(--white); border-bottom: 1px solid var(--border);
+    padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.15rem; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .page-body { padding: 28px 32px; }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--ink); color: white; }
+  .btn-primary:hover { background: #1E2832; }
+  .btn-gold { background: var(--gold); color: var(--ink); }
+  .btn-gold:hover { background: #04dd45; }
+  .btn-outline { background: transparent; color: var(--ink); border: 1.5px solid var(--border); }
+  .btn-outline:hover { background: var(--cream); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+  .btn-lg { padding: 12px 24px; font-size: 0.95rem; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* CARDS */
+  .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: var(--shadow); }
+  .card-sm { padding: 16px; }
+
+  /* STATS ROW */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .stat-label { font-size: 0.72rem; color: var(--mist); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+  .stat-sub { font-size: 0.75rem; color: var(--mist); margin-top: 4px; }
+  .stat-card.gold { border-left: 3px solid var(--gold); }
+  .stat-card.green { border-left: 3px solid var(--forest-light); }
+  .stat-card.rust { border-left: 3px solid var(--rust); }
+  .stat-card.mist { border-left: 3px solid var(--mist); }
+
+  /* DOSSIER LIST */
+  .dossier-list { display: flex; flex-direction: column; gap: 10px; }
+  .dossier-row {
+    background: white; border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; display: flex; align-items: center; gap: 16px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .dossier-row:hover { border-color: var(--gold); box-shadow: var(--shadow); transform: translateY(-1px); }
+  .dossier-avatar {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: var(--cream); display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.95rem; color: var(--ink);
+    flex-shrink: 0;
+  }
+  .dossier-info { flex: 1; min-width: 0; }
+  .dossier-name { font-weight: 600; font-size: 0.93rem; }
+  .dossier-meta { font-size: 0.77rem; color: var(--mist); margin-top: 2px; }
+  .dossier-amount { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+  .dossier-progress-wrap { width: 80px; }
+  .progress-bar { height: 5px; background: var(--cream); border-radius: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 10px; background: var(--forest-light); transition: width 0.3s; }
+  .progress-fill.warn { background: var(--gold); }
+  .progress-fill.danger { background: var(--rust); }
+  .progress-label { font-size: 0.68rem; color: var(--mist); margin-top: 3px; text-align: right; }
+
+  /* STATUS BADGE */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+  .badge-complete { background: #E8F5E9; color: var(--forest); }
+  .badge-partial { background: #FFF8E1; color: #8B6914; }
+  .badge-new { background: #E3F2FD; color: #1565C0; }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+  .form-label span { color: var(--rust); margin-left: 2px; }
+  .form-input, .form-select, .form-textarea {
+    padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; color: var(--ink);
+    background: white; transition: border-color 0.15s; outline: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--gold); }
+  .form-textarea { min-height: 80px; resize: vertical; }
+  .form-hint { font-size: 0.72rem; color: var(--mist); }
+
+  /* SOUS-DOSSIERS */
+  .sous-dossier-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab-btn {
+    padding: 8px 18px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: white; font-family: 'Syne', sans-serif; font-weight: 600;
+    font-size: 0.83rem; cursor: pointer; transition: all 0.15s; color: var(--mist);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tab-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
+  .tab-btn.validated { background: #E8F5E9; color: var(--forest); border-color: #A5D6A7; }
+  .tab-btn.validated.active { background: var(--forest); color: white; border-color: var(--forest); }
+  .tab-btn.locked { background: var(--paper); color: var(--border); border-color: var(--border); cursor: not-allowed; opacity: 0.6; }
+  .tab-btn .tab-count { font-size: 0.7rem; opacity: 0.7; }
+  .tab-btn .tab-icon { font-size: 0.8rem; }
+
+  /* VALIDATION BANNER */
+  .validation-banner {
+    border-radius: 12px; padding: 18px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-top: 20px; border: 1.5px solid;
+  }
+  .validation-banner.ready { background: #F0FBF0; border-color: #A5D6A7; }
+  .validation-banner.incomplete { background: #FFF8E1; border-color: #FFE082; }
+  .validation-banner.done { background: #E8F5E9; border-color: #81C784; }
+  .validation-banner-left { display: flex; align-items: center; gap: 12px; }
+  .validation-banner-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .validation-banner-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.92rem; }
+  .validation-banner-sub { font-size: 0.78rem; color: var(--mist); margin-top: 2px; }
+  .btn-validate { background: var(--forest); color: white; border: none; padding: 10px 22px; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .btn-validate:hover { background: #2C5F2E; transform: translateY(-1px); }
+  .btn-validate:disabled { background: var(--border); color: var(--mist); cursor: not-allowed; transform: none; }
+  .btn-unvalidate { background: transparent; color: var(--mist); border: 1.5px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .btn-unvalidate:hover { border-color: var(--rust); color: var(--rust); }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 32px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    background: var(--paper);
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--gold); background: var(--gold-light); }
+  .upload-icon { font-size: 2rem; margin-bottom: 10px; }
+  .upload-title { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 6px; }
+  .upload-sub { font-size: 0.8rem; color: var(--mist); }
+
+  /* DOC CHECKLIST */
+  .doc-checklist { display: flex; flex-direction: column; gap: 8px; }
+  .doc-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: white; transition: all 0.15s;
+  }
+  .doc-item.uploaded { border-color: #A5D6A7; background: #F1F8E9; }
+  .doc-item.missing { border-color: #FFCDD2; background: #FFF5F5; }
+  .doc-check { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; }
+  .doc-check.ok { background: var(--forest-light); color: white; }
+  .doc-check.no { background: var(--border); color: var(--mist); }
+  .doc-check.req { background: var(--rust); color: white; }
+  .doc-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+  .doc-file-name { font-size: 0.72rem; color: var(--mist); }
+  .doc-actions { display: flex; gap: 6px; }
+
+  /* FILE PILL */
+  .file-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--cream); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;
+  }
+  .file-pill-remove { background: none; border: none; cursor: pointer; color: var(--mist); font-size: 0.9rem; line-height: 1; padding: 0 2px; }
+  .file-pill-remove:hover { color: var(--danger); }
+
+  /* UPLOADED FILES GRID */
+  .files-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  /* TIMELINE */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .timeline-item { display: flex; gap: 14px; padding-bottom: 20px; position: relative; }
+  .timeline-item:not(:last-child)::before { content: ''; position: absolute; left: 13px; top: 28px; bottom: 0; width: 1px; background: var(--border); }
+  .timeline-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--cream); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; z-index: 1; }
+  .timeline-dot.gold { background: var(--gold); border-color: var(--gold); }
+  .timeline-dot.green { background: var(--forest-light); border-color: var(--forest-light); color: white; }
+  .timeline-content { flex: 1; }
+  .timeline-action { font-weight: 600; font-size: 0.85rem; }
+  .timeline-time { font-size: 0.72rem; color: var(--mist); margin-top: 2px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(13,17,23,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px; animation: fadeIn 0.15s;
+  }
+  .modal {
+    background: white; border-radius: 16px; width: 100%; max-width: 760px;
+    max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg);
+    animation: slideUp 0.2s;
+  }
+  .modal-header { padding: 24px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; }
+  .modal-close { background: var(--cream); border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; }
+  .modal-body { padding: 24px 28px; }
+  .modal-footer { padding: 16px 28px 24px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* SECTION HEADER */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; }
+  .section-line { height: 3px; width: 32px; background: var(--gold); border-radius: 2px; margin-top: 4px; }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 60px 20px; }
+  .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+  .empty-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--mist); }
+  .empty-sub { font-size: 0.83rem; color: var(--mist); margin-top: 6px; }
+
+  /* DETAIL VIEW */
+  .detail-header { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 28px; }
+  .detail-avatar { width: 56px; height: 56px; border-radius: 14px; background: var(--ink); color: white; display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; }
+  .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+  .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--cream); font-size: 0.85rem; }
+  .info-key { color: var(--mist); }
+  .info-val { font-weight: 600; }
+
+  /* COMPLETION RING */
+  .completion-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+  .ring-label { position: absolute; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.9rem; }
+
+  /* TAG */
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; background: var(--cream); color: var(--mist); }
+
+  /* SEARCH */
+  .search-bar { display: flex; align-items: center; gap: 10px; background: white; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 14px; }
+  .search-bar input { border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; flex: 1; }
+  .search-icon { color: var(--mist); }
+
+  /* ALERT */
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 0.83rem; margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-warning { background: #FFF8E1; border: 1px solid #FFE082; color: #7B5800; }
+  .alert-success { background: #E8F5E9; border: 1px solid #A5D6A7; color: #2E7D32; }
+  .alert-info { background: #E3F2FD; border: 1px solid #90CAF9; color: #1565C0; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  /* LOGIN SCREEN */
+  .login-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--ink); position: relative; overflow: hidden;
+  }
+  .login-bg-pattern {
+    position: absolute; inset: 0; opacity: 0.04;
+    background-image: repeating-linear-gradient(45deg, #C9A84C 0, #C9A84C 1px, transparent 0, transparent 50%);
+    background-size: 30px 30px;
+  }
+  .login-card {
+    background: var(--paper); border-radius: 20px; padding: 48px 44px;
+    width: 100%; max-width: 420px; box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    position: relative; z-index: 1;
+  }
+  .login-logo {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .login-logo-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--gold); color: var(--ink);
+    padding: 8px 14px 8px 10px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.15rem;
+  }
+  .login-title {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem;
+    margin-bottom: 6px; color: var(--ink);
+  }
+  .login-subtitle { font-size: 0.85rem; color: var(--mist); margin-bottom: 32px; }
+  .login-input-wrap { position: relative; margin-bottom: 20px; }
+  .login-input-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 1.1rem; pointer-events: none;
+  }
+  .login-input {
+    width: 100%; padding: 13px 44px 13px 42px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--ink);
+    background: white; outline: none; transition: border-color 0.15s;
+  }
+  .login-input:focus { border-color: var(--gold); }
+  .login-input.error { border-color: var(--danger); }
+  .login-eye {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; font-size: 1.1rem;
+    color: var(--mist); padding: 0;
+  }
+  .login-error {
+    background: #FFF0EE; border: 1px solid #FFCDD2; color: var(--danger);
+    padding: 10px 14px; border-radius: 8px; font-size: 0.83rem;
+    margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    animation: shake 0.3s ease;
+  }
+  .login-btn {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    background: var(--ink); color: white; font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.15s;
+    margin-top: 4px;
+  }
+  .login-btn:hover { background: #1E2832; transform: translateY(-1px); }
+  .login-btn:active { transform: translateY(0); }
+  .login-footer { margin-top: 28px; text-align: center; font-size: 0.75rem; color: var(--mist); }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ─── DATA: Documents requis par tranche de crédit ───────────────────────────
+const TRANCHES = [
+  { id: 't1', label: '50 000 – 500 000 FCFA', min: 50000, max: 500000 },
+  { id: 't2', label: '500 000 – 3 000 000 FCFA', min: 500000, max: 3000000 },
+  { id: 't3', label: '3 000 000 – 10 000 000 FCFA', min: 3000000, max: 10000000 },
+  { id: 't4', label: 'Supérieur à 10 000 000 FCFA', min: 10000000, max: Infinity },
+];
+
+const DOCS_CONFIG = {
+  // ── TRANCHE 1 : 50 000 – 500 000 FCFA ────────────────────────────────────
+  t1: {
+    PHYS: {
+      A: [
+        { id: 'ouv_compte',   label: "Demande d'ouverture de compte",          required: true },
+        { id: 'pres_termes',  label: 'Document de présentation des termes',     required: true },
+        { id: 'cni',          label: 'Photocopie CNI',                          required: true },
+        { id: 'immat',        label: 'Immatriculation',                         required: true },
+        { id: 'impots',       label: 'Impôts',                                  required: true },
+      ],
+      B: [
+        { id: 'grille_b',     label: "Grille d'analyse du crédit",              required: true },
+        { id: 'bordereau_b',  label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 'aucun_credit', label: 'Aucun crédit au paravent',                required: true },
+        { id: 'assurance_b',  label: 'Assurance',                               required: true },
+        { id: 'plan_loca_b',  label: 'Plan de localisation du domicile et des activités', required: true },
+        { id: 'decl_patri_b', label: 'Déclaration du patrimoine',               required: true },
+        { id: 'fiche_info_b', label: "Fiche d'information du client",           required: true },
+        { id: 'anemcam_b',    label: 'ANEMCAM',                                 required: true },
+      ],
+      C: [
+        { id: 'grille_c',         label: "Grille d'analyse du crédit",              required: true },
+        { id: 'bordereau_c',      label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 'credit_encours_c', label: 'Crédit en cours (a déjà eu un crédit ailleurs)', required: true },
+        { id: 'tableau_amort_c',  label: "Tableau d'amortissement du dernier crédit", required: true },
+        { id: 'plan_loca_act_c',  label: "Plan de localisation de l'activité",       required: true },
+        { id: 'decl_patri_c',     label: 'Déclaration du patrimoine',                required: true },
+        { id: 'fiche_info_c',     label: "Fiche d'information du client",            required: true },
+        { id: 'anemcam_c',        label: 'ANEMCAM',                                  required: true },
+      ],
+      D: [
+        { id: 'caution_sol',    label: 'Caution solidaire',                                        required: false },
+        { id: 'caution_pers',   label: 'Caution personnelle',                                      required: false },
+        { id: 'cert_attrib',    label: "Certification d'attribution de boutique",                  required: false },
+        { id: 'garantie_fonc',  label: 'Garantie foncière (contrat de vente parcelle, titre foncier)', required: false },
+        { id: 'gage_vehic',     label: 'Gage sur le véhicule',                                     required: false },
+      ],
+    },
+    MORA: {
+      A: [
+        { id: 'ouv_compte_m',  label: "Demande d'ouverture de compte",       required: true },
+        { id: 'pres_termes_m', label: 'Document de présentation des termes', required: true },
+        { id: 'cni_rep',       label: 'CNI du représentant légal',            required: true },
+        { id: 'rccm',          label: 'RCCM / Registre de commerce',          required: true },
+        { id: 'doc_fiscaux',   label: 'Documents fiscaux',                    required: true },
+        { id: 'statuts',       label: 'Statuts de la société',                required: true },
+        { id: 'pv',            label: 'Procès-verbal autorisant le crédit',   required: true },
+      ],
+      B: [
+        { id: 'grille_m_b',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 'bordereau_m_b',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 'cpt_res_m_b',     label: 'Compte de résultat',                   required: true },
+        { id: 'cpt_exploit_m_b', label: "Compte d'exploitation",                required: true },
+        { id: 'dsf_m_b',         label: 'DSF',                                  required: true },
+      ],
+      C: [
+        { id: 'grille_m_c',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 'bordereau_m_c',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 'cpt_res_m_c',     label: 'Compte de résultat',                   required: true },
+        { id: 'cpt_exploit_m_c', label: "Compte d'exploitation",                required: true },
+        { id: 'dsf_m_c',         label: 'DSF',                                  required: true },
+      ],
+      D: [
+        { id: 'caution_sol_m',   label: 'Caution solidaire',                                        required: false },
+        { id: 'caution_pers_m',  label: 'Caution personnelle',                                      required: false },
+        { id: 'cert_attrib_m',   label: "Certification d'attribution de boutique",                  required: false },
+        { id: 'garantie_fonc_m', label: 'Garantie foncière (contrat de vente parcelle, titre foncier)', required: false },
+      ],
+    },
+  },
+
+  // ── TRANCHE 2 : 500 000 – 3 000 000 FCFA  (A/B/C = mêmes docs que t1, D différent) ──
+  t2: {
+    PHYS: {
+      A: [
+        { id: 't2_ouv_compte',  label: "Demande d'ouverture de compte",          required: true },
+        { id: 't2_pres_termes', label: 'Document de présentation des termes',     required: true },
+        { id: 't2_cni',         label: 'Photocopie CNI',                          required: true },
+        { id: 't2_immat',       label: 'Immatriculation',                         required: true },
+        { id: 't2_impots',      label: 'Impôts',                                  required: true },
+      ],
+      B: [
+        { id: 't2_grille_b',     label: "Grille d'analyse du crédit",              required: true },
+        { id: 't2_bordereau_b',  label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 't2_aucun_credit', label: 'Aucun crédit au paravent',                required: true },
+        { id: 't2_assurance_b',  label: 'Assurance',                               required: true },
+        { id: 't2_plan_loca_b',  label: 'Plan de localisation du domicile et des activités', required: true },
+        { id: 't2_decl_patri_b', label: 'Déclaration du patrimoine',               required: true },
+        { id: 't2_fiche_info_b', label: "Fiche d'information du client",           required: true },
+        { id: 't2_anemcam_b',    label: 'ANEMCAM',                                 required: true },
+      ],
+      C: [
+        { id: 't2_grille_c',         label: "Grille d'analyse du crédit",              required: true },
+        { id: 't2_bordereau_c',      label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 't2_credit_encours_c', label: 'Crédit en cours (a déjà eu un crédit ailleurs)', required: true },
+        { id: 't2_tableau_amort_c',  label: "Tableau d'amortissement du dernier crédit", required: true },
+        { id: 't2_plan_loca_act_c',  label: "Plan de localisation de l'activité",       required: true },
+        { id: 't2_decl_patri_c',     label: 'Déclaration du patrimoine',                required: true },
+        { id: 't2_fiche_info_c',     label: "Fiche d'information du client",            required: true },
+        { id: 't2_anemcam_c',        label: 'ANEMCAM',                                  required: true },
+      ],
+      D: [
+        { id: 't2_caution_salarie',  label: "Caution personnelle d'un salarié (avaliseur)", required: true },
+        { id: 't2_garantie_fonc',    label: 'Garantie foncière (contrat de vente parcelle, TF)', required: false },
+        { id: 't2_gage_vehic',       label: 'Gage sur véhicule',                                 required: false },
+      ],
+    },
+    MORA: {
+      A: [
+        { id: 't2_ouv_compte_m',  label: "Demande d'ouverture de compte",       required: true },
+        { id: 't2_pres_termes_m', label: 'Document de présentation des termes', required: true },
+        { id: 't2_cni_rep',       label: 'CNI du représentant légal',            required: true },
+        { id: 't2_rccm',          label: 'RCCM / Registre de commerce',          required: true },
+        { id: 't2_doc_fiscaux',   label: 'Documents fiscaux',                    required: true },
+        { id: 't2_statuts',       label: 'Statuts de la société',                required: true },
+        { id: 't2_pv',            label: 'Procès-verbal autorisant le crédit',   required: true },
+      ],
+      B: [
+        { id: 't2_grille_m_b',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 't2_bordereau_m_b',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 't2_cpt_res_m_b',     label: 'Compte de résultat',                   required: true },
+        { id: 't2_cpt_exploit_m_b', label: "Compte d'exploitation",                required: true },
+        { id: 't2_dsf_m_b',         label: 'DSF',                                  required: true },
+      ],
+      C: [
+        { id: 't2_grille_m_c',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 't2_bordereau_m_c',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 't2_cpt_res_m_c',     label: 'Compte de résultat',                   required: true },
+        { id: 't2_cpt_exploit_m_c', label: "Compte d'exploitation",                required: true },
+        { id: 't2_dsf_m_c',         label: 'DSF',                                  required: true },
+      ],
+      D: [
+        { id: 't2_caution_sol_m',   label: 'Caution solidaire',                                        required: false },
+        { id: 't2_caution_pers_m',  label: 'Caution personnelle',                                      required: false },
+        { id: 't2_cert_attrib_m',   label: "Certification d'attribution de boutique",                  required: false },
+        { id: 't2_garantie_fonc_m', label: 'Garantie foncière (contrat de vente parcelle, titre foncier)', required: false },
+      ],
+    },
+  },
+
+  // ── TRANCHE 3 : 3 000 000 – 10 000 000 FCFA ────────────────────────────────
+  t3: {
+    PHYS: {
+      A: [
+        { id: 't3_ouv_compte',  label: "Demande d'ouverture de compte",          required: true },
+        { id: 't3_pres_termes', label: 'Document de présentation des termes',     required: true },
+        { id: 't3_cni',         label: 'Photocopie CNI',                          required: true },
+        { id: 't3_immat',       label: 'Immatriculation',                         required: true },
+        { id: 't3_impots',      label: 'Impôts',                                  required: true },
+      ],
+      B: [
+        { id: 't3_grille_b',     label: "Grille d'analyse du crédit",              required: true },
+        { id: 't3_bordereau_b',  label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 't3_aucun_credit', label: 'Aucun crédit au paravent',                required: true },
+        { id: 't3_assurance_b',  label: 'Assurance',                               required: true },
+        { id: 't3_plan_loca_b',  label: 'Plan de localisation du domicile et des activités', required: true },
+        { id: 't3_decl_patri_b', label: 'Déclaration du patrimoine',               required: true },
+        { id: 't3_fiche_info_b', label: "Fiche d'information du client",           required: true },
+        { id: 't3_anemcam_b',    label: 'ANEMCAM',                                 required: true },
+      ],
+      C: [
+        { id: 't3_grille_c',         label: "Grille d'analyse du crédit",              required: true },
+        { id: 't3_bordereau_c',      label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 't3_credit_encours_c', label: 'Crédit en cours (a déjà eu un crédit ailleurs)', required: true },
+        { id: 't3_tableau_amort_c',  label: "Tableau d'amortissement du dernier crédit", required: true },
+        { id: 't3_plan_loca_act_c',  label: "Plan de localisation de l'activité",       required: true },
+        { id: 't3_decl_patri_c',     label: 'Déclaration du patrimoine',                required: true },
+        { id: 't3_fiche_info_c',     label: "Fiche d'information du client",            required: true },
+        { id: 't3_anemcam_c',        label: 'ANEMCAM',                                  required: true },
+      ],
+      D: [
+        { id: 't3_garantie_fonc_titre', label: 'Garantie foncière du titre — dépôt libre du titre foncier notarié, certificat de vente terrain', required: true },
+        { id: 't3_nantissement',        label: 'Nantissement',                                                                                    required: true },
+      ],
+    },
+    MORA: {
+      A: [
+        { id: 't3_ouv_compte_m',  label: "Demande d'ouverture de compte",       required: true },
+        { id: 't3_pres_termes_m', label: 'Document de présentation des termes', required: true },
+        { id: 't3_cni_rep',       label: 'CNI du représentant légal',            required: true },
+        { id: 't3_rccm',          label: 'RCCM / Registre de commerce',          required: true },
+        { id: 't3_doc_fiscaux',   label: 'Documents fiscaux',                    required: true },
+        { id: 't3_statuts',       label: 'Statuts de la société',                required: true },
+        { id: 't3_pv',            label: 'Procès-verbal autorisant le crédit',   required: true },
+      ],
+      B: [
+        { id: 't3_grille_m_b',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 't3_bordereau_m_b',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 't3_cpt_res_m_b',     label: 'Compte de résultat',                   required: true },
+        { id: 't3_cpt_exploit_m_b', label: "Compte d'exploitation",                required: true },
+        { id: 't3_dsf_m_b',         label: 'DSF',                                  required: true },
+      ],
+      C: [
+        { id: 't3_grille_m_c',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 't3_bordereau_m_c',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 't3_cpt_res_m_c',     label: 'Compte de résultat',                   required: true },
+        { id: 't3_cpt_exploit_m_c', label: "Compte d'exploitation",                required: true },
+        { id: 't3_dsf_m_c',         label: 'DSF',                                  required: true },
+      ],
+      D: [
+        { id: 't3_caution_sol_m',   label: 'Caution solidaire',                                        required: false },
+        { id: 't3_caution_pers_m',  label: 'Caution personnelle',                                      required: false },
+        { id: 't3_cert_attrib_m',   label: "Certification d'attribution de boutique",                  required: false },
+        { id: 't3_garantie_fonc_m', label: 'Garantie foncière (contrat de vente parcelle, titre foncier)', required: false },
+      ],
+    },
+  },
+
+  // ── TRANCHE 4 : Supérieur à 10 000 000 FCFA ────────────────────────────────
+  t4: {
+    PHYS: {
+      A: [
+        { id: 't4_ouv_compte',  label: "Demande d'ouverture de compte",          required: true },
+        { id: 't4_pres_termes', label: 'Document de présentation des termes',     required: true },
+        { id: 't4_cni',         label: 'Photocopie CNI',                          required: true },
+        { id: 't4_immat',       label: 'Immatriculation',                         required: true },
+        { id: 't4_impots',      label: 'Impôts',                                  required: true },
+      ],
+      B: [
+        { id: 't4_grille_b',     label: "Grille d'analyse du crédit",              required: true },
+        { id: 't4_bordereau_b',  label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 't4_aucun_credit', label: 'Aucun crédit au paravent',                required: true },
+        { id: 't4_assurance_b',  label: 'Assurance',                               required: true },
+        { id: 't4_plan_loca_b',  label: 'Plan de localisation du domicile et des activités', required: true },
+        { id: 't4_decl_patri_b', label: 'Déclaration du patrimoine',               required: true },
+        { id: 't4_fiche_info_b', label: "Fiche d'information du client",           required: true },
+        { id: 't4_anemcam_b',    label: 'ANEMCAM',                                 required: true },
+      ],
+      C: [
+        { id: 't4_grille_c',         label: "Grille d'analyse du crédit",              required: true },
+        { id: 't4_bordereau_c',      label: 'Bordereau de mise en place du crédit',    required: true },
+        { id: 't4_credit_encours_c', label: 'Crédit en cours (a déjà eu un crédit ailleurs)', required: true },
+        { id: 't4_tableau_amort_c',  label: "Tableau d'amortissement du dernier crédit", required: true },
+        { id: 't4_plan_loca_act_c',  label: "Plan de localisation de l'activité",       required: true },
+        { id: 't4_decl_patri_c',     label: 'Déclaration du patrimoine',                required: true },
+        { id: 't4_fiche_info_c',     label: "Fiche d'information du client",            required: true },
+        { id: 't4_anemcam_c',        label: 'ANEMCAM',                                  required: true },
+      ],
+      D: [
+        { id: 't4_domiciliation',     label: 'Domiciliation des recettes dans les livres de FTSL',           required: true },
+        { id: 't4_nantissement',      label: 'Nantissement sous seing privé, faveur FTSL',                   required: true },
+        { id: 't4_garantie_notaire',  label: 'Garantie foncière (titre foncier notarié, certificat de vente)', required: true },
+      ],
+    },
+    MORA: {
+      A: [
+        { id: 't4_ouv_compte_m',  label: "Demande d'ouverture de compte",       required: true },
+        { id: 't4_pres_termes_m', label: 'Document de présentation des termes', required: true },
+        { id: 't4_cni_rep',       label: 'CNI du représentant légal',            required: true },
+        { id: 't4_rccm',          label: 'RCCM / Registre de commerce',          required: true },
+        { id: 't4_doc_fiscaux',   label: 'Documents fiscaux',                    required: true },
+        { id: 't4_statuts',       label: 'Statuts de la société',                required: true },
+        { id: 't4_pv',            label: 'Procès-verbal autorisant le crédit',   required: true },
+      ],
+      B: [
+        { id: 't4_grille_m_b',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 't4_bordereau_m_b',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 't4_cpt_res_m_b',     label: 'Compte de résultat',                   required: true },
+        { id: 't4_cpt_exploit_m_b', label: "Compte d'exploitation",                required: true },
+        { id: 't4_dsf_m_b',         label: 'DSF',                                  required: true },
+      ],
+      C: [
+        { id: 't4_grille_m_c',      label: "Grille d'analyse du crédit",           required: true },
+        { id: 't4_bordereau_m_c',   label: 'Bordereau de mise en place du crédit', required: true },
+        { id: 't4_cpt_res_m_c',     label: 'Compte de résultat',                   required: true },
+        { id: 't4_cpt_exploit_m_c', label: "Compte d'exploitation",                required: true },
+        { id: 't4_dsf_m_c',         label: 'DSF',                                  required: true },
+      ],
+      D: [
+        { id: 't4_caution_sol_m',   label: 'Caution solidaire',                                        required: false },
+        { id: 't4_caution_pers_m',  label: 'Caution personnelle',                                      required: false },
+        { id: 't4_cert_attrib_m',   label: "Certification d'attribution de boutique",                  required: false },
+        { id: 't4_garantie_fonc_m', label: 'Garantie foncière (contrat de vente parcelle, titre foncier)', required: false },
+      ],
+    },
+  },
+};
+
+// ─── DB (IndexedDB) ──────────────────────────────────────────────────────────
+const DB_NAME = 'NBS_CREDIT_DB';
+const DB_VER = 1;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('dossiers')) {
+        const store = db.createObjectStore('dossiers', { keyPath: 'id' });
+        store.createIndex('status', 'status');
+        store.createIndex('createdAt', 'createdAt');
+      }
+    };
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
+async function dbGetAll() {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('dossiers', 'readonly');
+    const req = tx.objectStore('dossiers').getAll();
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
+async function dbPut(record) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('dossiers', 'readwrite');
+    tx.objectStore('dossiers').put(record);
+    tx.oncomplete = () => res(record);
+    tx.onerror = e => rej(e.target.error);
+  });
+}
+
+async function dbDelete(id) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('dossiers', 'readwrite');
+    tx.objectStore('dossiers').delete(id);
+    tx.oncomplete = () => res();
+    tx.onerror = e => rej(e.target.error);
+  });
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function getTranche(montant) {
+  const m = Number(montant);
+  return TRANCHES.find(t => m >= t.min && m < t.max) || TRANCHES[0];
+}
+
+function getDocsForDossier(trancheId, typeClient) {
+  const t = DOCS_CONFIG[trancheId] || DOCS_CONFIG['t1'];
+  const tc = t[typeClient] || t['PHYS'];
+  return { A: tc.A || [], B: tc.B || [], C: tc.C || [], D: tc.D || [] };
+}
+
+function calcCompletion(dossier) {
+  const docs = getDocsForDossier(dossier.trancheId, dossier.typeClient);
+  const allRequired = [...docs.A, ...docs.B, ...docs.C, ...docs.D].filter(d => d.required);
+  if (allRequired.length === 0) return 100;
+  const uploaded = allRequired.filter(d => dossier.files && dossier.files[d.id] && dossier.files[d.id].length > 0);
+  return Math.round((uploaded.length / allRequired.length) * 100);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function fmtMontant(n) {
+  if (!n) return '—';
+  return Number(n).toLocaleString('fr-FR') + ' FCFA';
+}
+
+function getInitials(nom) {
+  return (nom || '??').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function getDossierStatus(completion) {
+  if (completion === 100) return 'complet';
+  if (completion >= 50) return 'partiel';
+  return 'nouveau';
+}
+
+// ─── FILE → BASE64 ───────────────────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res({ name: file.name, size: file.size, type: file.type, data: r.result });
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ─── COMPLETION RING SVG ──────────────────────────────────────────────────────
+function Ring({ pct, size = 64, stroke = 6 }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const filled = (pct / 100) * circ;
+  const color = pct === 100 ? '#4A8C4D' : pct >= 50 ? '#C9A84C' : '#B85C38';
+  return (
+    <div className="completion-ring" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#EDE9E1" strokeWidth={stroke}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={`${filled} ${circ}`} strokeLinecap="round"
+          transform={`rotate(-90 ${size/2} ${size/2})`}/>
+      </svg>
+      <span className="ring-label" style={{ color, fontSize: size < 50 ? '0.65rem' : '0.9rem' }}>{pct}%</span>
+    </div>
+  );
+}
+
+// ─── BADGE STATUS ─────────────────────────────────────────────────────────────
+function StatusBadge({ completion }) {
+  const s = getDossierStatus(completion);
+  if (s === 'complet') return <span className="badge badge-complete"><span className="badge-dot"/>Complet</span>;
+  if (s === 'partiel') return <span className="badge badge-partial"><span className="badge-dot"/>En cours</span>;
+  return <span className="badge badge-new"><span className="badge-dot"/>Nouveau</span>;
+}
+
+// ─── MOT DE PASSE (modifiable ici) ───────────────────────────────────────────
+const APP_PASSWORD = 'gestionnaire2024';
+const SESSION_KEY = 'nbs_auth_session';
+
+// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [password, setPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState('');
+  const [errKey, setErrKey] = useState(0);
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const handleSubmit = () => {
+    if (password === APP_PASSWORD) {
+      sessionStorage.setItem(SESSION_KEY, 'true');
+      onLogin();
+    } else {
+      setError('Mot de passe incorrect. Veuillez réessayer.');
+      setErrKey(k => k + 1);
+      setPassword('');
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
+
+  const handleKey = (e) => { if (e.key === 'Enter') handleSubmit(); };
+
+  return (
+    <div className="login-screen">
+      <div className="login-bg-pattern"/>
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-badge"><div className="logo-dot"/>Gestion Crédit</div>
+        </div>
+        <div className="login-title">Accès sécurisé</div>
+        <div className="login-subtitle">Veuillez saisir votre mot de passe gestionnaire pour accéder à l'application.</div>
+
+        {error && (
+          <div className="login-error" key={errKey}>
+            <span>🔒</span> {error}
+          </div>
+        )}
+
+        <div className="login-input-wrap">
+          <span className="login-input-icon">🔑</span>
+          <input
+            ref={inputRef}
+            type={showPwd ? 'text' : 'password'}
+            className={'login-input' + (error ? ' error' : '')}
+            placeholder="Mot de passe..."
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError(''); }}
+            onKeyDown={handleKey}
+          />
+          <button className="login-eye" onClick={() => setShowPwd(v => !v)} tabIndex={-1}>
+            {showPwd ? '🙈' : '👁️'}
+          </button>
+        </div>
+
+        <button className="login-btn" onClick={handleSubmit} disabled={!password}>
+          Accéder à l'application →
+        </button>
+
+        <div className="login-footer">
+          Gestionnaire de Dossiers de Crédit • Accès réservé aux gestionnaires autorisés
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState('dashboard'); // dashboard | nouveau | detail
+  const [dossiers, setDossiers] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [authenticated, setAuthenticated] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) === 'true'
+  );
+
+  useEffect(() => {
+    dbGetAll().then(rows => setDossiers(rows.sort((a,b) => b.createdAt - a.createdAt)));
+  }, []);
+
+  const reload = async () => {
+    const rows = await dbGetAll();
+    setDossiers(rows.sort((a,b) => b.createdAt - a.createdAt));
+  };
+
+  const openDetail = (id) => { setSelectedId(id); setPage('detail'); };
+
+  const filtered = dossiers.filter(d =>
+    !search || d.nomClient.toLowerCase().includes(search.toLowerCase()) ||
+    (d.numeroDossier || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const stats = {
+    total: dossiers.length,
+    complets: dossiers.filter(d => calcCompletion(d) === 100).length,
+    encours: dossiers.filter(d => { const c = calcCompletion(d); return c > 0 && c < 100; }).length,
+    nouveaux: dossiers.filter(d => calcCompletion(d) === 0).length,
+  };
+
+  const selected = dossiers.find(d => d.id === selectedId);
+
+  const navItems = [
+    { id: 'dashboard', icon: '⊞', label: 'Tableau de bord' },
+    { id: 'nouveau', icon: '＋', label: 'Nouveau dossier' },
+  ];
+
+  if (!authenticated) {
+    return <LoginScreen onLogin={() => setAuthenticated(true)} />;
+  }
+
+  const handleLogout = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setAuthenticated(false);
+  };
+
+  return (
+    <div className="app-shell">
+      {/* SIDEBAR */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div className="logo-badge"><div className="logo-dot"/>Gestion Crédit</div>
+          <div className="sidebar-subtitle">Gestionnaire de dossiers</div>
+        </div>
+        <nav className="sidebar-nav">
+          <div className="nav-section-label">Navigation</div>
+          {navItems.map(item => (
+            <div key={item.id}
+              className={`nav-item ${page === item.id || (page === 'detail' && item.id === 'dashboard') ? 'active' : ''}`}
+              onClick={() => { setPage(item.id); setSelectedId(null); }}>
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </div>
+          ))}
+          <div className="nav-section-label" style={{marginTop: 24}}>Statistiques rapides</div>
+          <div style={{padding: '8px 12px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.8rem',marginBottom:6}}>
+              <span style={{color:'rgba(255,255,255,0.5)'}}>Total dossiers</span>
+              <span style={{color:'white',fontWeight:700}}>{stats.total}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.8rem',marginBottom:6}}>
+              <span style={{color:'rgba(255,255,255,0.5)'}}>Complets</span>
+              <span style={{color:'#4A8C4D',fontWeight:700}}>{stats.complets}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.8rem'}}>
+              <span style={{color:'rgba(255,255,255,0.5)'}}>En cours</span>
+              <span style={{color:'#C9A84C',fontWeight:700}}>{stats.encours}</span>
+            </div>
+          </div>
+        </nav>
+        <div className="sidebar-footer" style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:"0.78rem",padding:"6px 0",borderRadius:6,transition:"color 0.15s"}} onMouseEnter={e=>e.currentTarget.style.color="#C9A84C"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.5)"}>
+            <span>🔓</span> Se déconnecter
+          </div>
+          <div>v1.0 • Gestion Crédit</div>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main className="main-content">
+        {page === 'dashboard' && (
+          <>
+            <div className="topbar">
+              <div className="topbar-title">Tableau de bord</div>
+              <div className="topbar-actions">
+                <div className="search-bar">
+                  <span className="search-icon">🔍</span>
+                  <input placeholder="Rechercher un client ou n° dossier..." value={search}
+                    onChange={e => setSearch(e.target.value)} style={{width:240}}/>
+                </div>
+                <button className="btn btn-gold" onClick={() => setPage('nouveau')}>+ Nouveau dossier</button>
+              </div>
+            </div>
+            <div className="page-body">
+              <div className="stats-row">
+                <div className="stat-card gold">
+                  <div className="stat-label">Total dossiers</div>
+                  <div className="stat-value">{stats.total}</div>
+                  <div className="stat-sub">tous les dossiers</div>
+                </div>
+                <div className="stat-card green">
+                  <div className="stat-label">Dossiers complets</div>
+                  <div className="stat-value">{stats.complets}</div>
+                  <div className="stat-sub">prêts pour validation</div>
+                </div>
+                <div className="stat-card rust">
+                  <div className="stat-label">En cours</div>
+                  <div className="stat-value">{stats.encours}</div>
+                  <div className="stat-sub">documents manquants</div>
+                </div>
+                <div className="stat-card mist">
+                  <div className="stat-label">Nouveaux</div>
+                  <div className="stat-value">{stats.nouveaux}</div>
+                  <div className="stat-sub">aucun doc uploadé</div>
+                </div>
+              </div>
+
+              <div className="section-header">
+                <div><div className="section-title">Dossiers de crédit</div><div className="section-line"/></div>
+                <span className="tag">{filtered.length} dossier{filtered.length > 1 ? 's' : ''}</span>
+              </div>
+
+              {filtered.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📂</div>
+                  <div className="empty-title">{search ? 'Aucun résultat' : 'Aucun dossier créé'}</div>
+                  <div className="empty-sub">{search ? 'Modifiez votre recherche' : 'Créez votre premier dossier de crédit'}</div>
+                  {!search && <button className="btn btn-gold" style={{marginTop:16}} onClick={() => setPage('nouveau')}>+ Créer un dossier</button>}
+                </div>
+              ) : (
+                <div className="dossier-list">
+                  {filtered.map(d => {
+                    const completion = calcCompletion(d);
+                    return (
+                      <div key={d.id} className="dossier-row" onClick={() => openDetail(d.id)}>
+                        <div className="dossier-avatar">{getInitials(d.nomClient)}</div>
+                        <div className="dossier-info">
+                          <div className="dossier-name">{d.nomClient}</div>
+                          <div className="dossier-meta">
+                            N° {d.numeroDossier || d.id.slice(0,8).toUpperCase()} • {d.typeClient === 'PHYS' ? 'Pers. Physique' : 'Pers. Morale'} • {fmtDate(d.createdAt)}
+                          </div>
+                        </div>
+                        <div className="dossier-amount">{fmtMontant(d.montant)}</div>
+                        <StatusBadge completion={completion}/>
+                        <div className="dossier-progress-wrap">
+                          <div className="progress-bar">
+                            <div className={`progress-fill ${completion < 33 ? 'danger' : completion < 70 ? 'warn' : ''}`} style={{width: completion+'%'}}/>
+                          </div>
+                          <div className="progress-label">{completion}%</div>
+                        </div>
+                        <Ring pct={completion} size={44} stroke={5}/>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {page === 'nouveau' && (
+          <NouveauDossier onSave={async (data) => {
+            await dbPut(data);
+            await reload();
+            setSelectedId(data.id);
+            setPage('detail');
+          }} onCancel={() => setPage('dashboard')}/>
+        )}
+
+        {page === 'detail' && selected && (
+          <DetailDossier dossier={selected} onBack={() => setPage('dashboard')}
+            onUpdate={async (updated) => {
+              await dbPut(updated);
+              await reload();
+            }}
+            onDelete={async () => {
+              await dbDelete(selected.id);
+              await reload();
+              setPage('dashboard');
+            }}/>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ─── NOUVEAU DOSSIER ──────────────────────────────────────────────────────────
+function NouveauDossier({ onSave, onCancel }) {
+  const [form, setForm] = useState({
+    nomClient: '', telephone: '', email: '', adresse: '',
+    typeClient: 'PHYS', montant: '', objet: '', duree: '',
+    numeroDossier: '',
+  });
+  const [errors, setErrors] = useState({});
+
+  const set = (k, v) => setForm(f => ({...f, [k]: v}));
+
+  const tranche = form.montant ? getTranche(form.montant) : null;
+
+  const validate = () => {
+    const e = {};
+    if (!form.nomClient.trim()) e.nomClient = 'Requis';
+    if (!form.montant || Number(form.montant) < 50000) e.montant = 'Montant minimum : 50 000 FCFA';
+    if (!form.objet.trim()) e.objet = 'Requis';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    const t = getTranche(form.montant);
+    const dossier = {
+      id: genId(),
+      ...form,
+      trancheId: t.id,
+      trancheLabel: t.label,
+      files: {},
+      historique: [{ at: Date.now(), action: 'Dossier créé', icon: '🗂️' }],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    onSave(dossier);
+  };
+
+  return (
+    <>
+      <div className="topbar">
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button className="btn btn-outline btn-sm" onClick={onCancel}>← Retour</button>
+          <div className="topbar-title">Nouveau dossier de crédit</div>
+        </div>
+        <div className="topbar-actions">
+          <button className="btn btn-outline" onClick={onCancel}>Annuler</button>
+          <button className="btn btn-gold btn-lg" onClick={handleSubmit}>Créer le dossier →</button>
+        </div>
+      </div>
+      <div className="page-body" style={{maxWidth:720}}>
+        {tranche && (
+          <div className="alert alert-info" style={{marginBottom:20}}>
+            <span>📋</span>
+            <div><strong>Tranche identifiée :</strong> {tranche.label}. Les documents requis seront générés automatiquement.</div>
+          </div>
+        )}
+
+        <div className="card" style={{marginBottom:20}}>
+          <div className="section-title" style={{marginBottom:16}}>Informations client</div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Nom complet <span>*</span></label>
+              <input className="form-input" value={form.nomClient} onChange={e=>set('nomClient',e.target.value)} placeholder="Ex: Jean Paul MBALLA"/>
+              {errors.nomClient && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.nomClient}</span>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Type de client <span>*</span></label>
+              <select className="form-select" value={form.typeClient} onChange={e=>set('typeClient',e.target.value)}>
+                <option value="PHYS">Personne Physique</option>
+                <option value="MORA">Personne Morale</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Téléphone</label>
+              <input className="form-input" value={form.telephone} onChange={e=>set('telephone',e.target.value)} placeholder="6XX XXX XXX"/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" value={form.email} onChange={e=>set('email',e.target.value)} placeholder="client@email.com"/>
+            </div>
+            <div className="form-group full">
+              <label className="form-label">Adresse</label>
+              <input className="form-input" value={form.adresse} onChange={e=>set('adresse',e.target.value)} placeholder="Quartier, Ville"/>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{marginBottom:20}}>
+          <div className="section-title" style={{marginBottom:16}}>Informations du crédit</div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Montant demandé (FCFA) <span>*</span></label>
+              <input className="form-input" type="number" value={form.montant} onChange={e=>set('montant',e.target.value)} placeholder="Ex: 250000"/>
+              {errors.montant && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.montant}</span>}
+              {tranche && <span className="form-hint">→ {tranche.label}</span>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Durée de remboursement</label>
+              <input className="form-input" value={form.duree} onChange={e=>set('duree',e.target.value)} placeholder="Ex: 12 mois"/>
+            </div>
+            <div className="form-group full">
+              <label className="form-label">Objet du crédit <span>*</span></label>
+              <textarea className="form-textarea" value={form.objet} onChange={e=>set('objet',e.target.value)} placeholder="Décrire l'objet du financement..."/>
+              {errors.objet && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.objet}</span>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">N° Compte (optionnel)</label>
+              <input className="form-input" value={form.numeroDossier} onChange={e=>set('numeroDossier',e.target.value)} placeholder="Laissez vide pour auto-génération"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── DETAIL DOSSIER ───────────────────────────────────────────────────────────
+function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
+  const [activeTab, setActiveTab] = useState('A');
+  const [dragging, setDragging] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const fileInputRef = useRef();
+  const [pendingDocId, setPendingDocId] = useState(null);
+
+  const docs = getDocsForDossier(dossier.trancheId, dossier.typeClient);
+  const completion = calcCompletion(dossier);
+  const allDocs = [...docs.A, ...docs.B, ...docs.C, ...docs.D];
+
+  // Sous-dossiers validés (stockés dans dossier.validatedTabs, ex: ['A','B'])
+  const validatedTabs = dossier.validatedTabs || [];
+  const TAB_ORDER = ['A','B','C','D'];
+
+  // Un onglet est accessible si tous les précédents sont validés
+  const isTabUnlocked = (t) => {
+    const idx = TAB_ORDER.indexOf(t);
+    if (idx === 0) return true;
+    return TAB_ORDER.slice(0, idx).every(prev => validatedTabs.includes(prev));
+  };
+
+  // Un sous-dossier est "complet" si tous ses docs obligatoires sont uploadés
+  const isTabComplete = (t) => {
+    const tabDocs = docs[t] || [];
+    const required = tabDocs.filter(d => d.required);
+    if (required.length === 0) return true;
+    return required.every(d => dossier.files?.[d.id]?.length > 0);
+  };
+
+  const isCurrentTabValidated = validatedTabs.includes(activeTab);
+  const isCurrentTabComplete = isTabComplete(activeTab);
+  const currentTabDocs = docs[activeTab] || [];
+  const missingCount = (docs[activeTab] || []).filter(d => d.required && !(dossier.files?.[d.id]?.length > 0)).length;
+  const nextTab = TAB_ORDER[TAB_ORDER.indexOf(activeTab) + 1];
+
+  const handleValidateTab = () => {
+    const newValidated = [...validatedTabs, activeTab];
+    const updated = {
+      ...dossier,
+      validatedTabs: newValidated,
+      historique: [...(dossier.historique || []), {
+        at: Date.now(),
+        action: `Sous-dossier ${activeTab} validé`,
+        icon: '✅',
+      }],
+      updatedAt: Date.now(),
+    };
+    onUpdate(updated);
+    if (nextTab && isTabUnlocked(nextTab)) setTimeout(() => setActiveTab(nextTab), 150);
+  };
+
+  const handleUnvalidateTab = () => {
+    // Dé-valider aussi tous les onglets suivants
+    const idx = TAB_ORDER.indexOf(activeTab);
+    const newValidated = validatedTabs.filter(t => TAB_ORDER.indexOf(t) < idx);
+    const updated = {
+      ...dossier,
+      validatedTabs: newValidated,
+      historique: [...(dossier.historique || []), {
+        at: Date.now(),
+        action: `Validation du sous-dossier ${activeTab} annulée`,
+        icon: '↩️',
+      }],
+      updatedAt: Date.now(),
+    };
+    onUpdate(updated);
+  };
+
+  const tabCounts = {
+    A: docs.A.filter(d => dossier.files?.[d.id]?.length > 0).length + '/' + docs.A.length,
+    B: docs.B.filter(d => dossier.files?.[d.id]?.length > 0).length + '/' + docs.B.length,
+    C: docs.C.filter(d => dossier.files?.[d.id]?.length > 0).length + '/' + docs.C.length,
+    D: docs.D.filter(d => dossier.files?.[d.id]?.length > 0).length + '/' + docs.D.length,
+  };
+
+  const currentDocs = docs[activeTab] || [];
+
+  const uploadFilesForDoc = async (docId, fileList) => {
+    const newFiles = await Promise.all([...fileList].map(fileToBase64));
+    const updated = {
+      ...dossier,
+      files: { ...dossier.files, [docId]: [...(dossier.files?.[docId] || []), ...newFiles] },
+      historique: [...(dossier.historique || []), {
+        at: Date.now(),
+        action: `Fichier(s) ajouté(s) : ${newFiles.map(f=>f.name).join(', ')}`,
+        icon: '📎',
+      }],
+      updatedAt: Date.now(),
+    };
+    onUpdate(updated);
+  };
+
+  const removeFile = (docId, idx) => {
+    const arr = [...(dossier.files?.[docId] || [])];
+    arr.splice(idx, 1);
+    const updated = {
+      ...dossier,
+      files: { ...dossier.files, [docId]: arr },
+      historique: [...(dossier.historique || []), { at: Date.now(), action: 'Fichier supprimé', icon: '🗑️' }],
+      updatedAt: Date.now(),
+    };
+    onUpdate(updated);
+  };
+
+  const handleDropZone = async (e, docId) => {
+    e.preventDefault(); setDragging(null);
+    const files = e.dataTransfer?.files || e.target.files;
+    if (files?.length) await uploadFilesForDoc(docId, files);
+  };
+
+  const triggerUpload = (docId) => { setPendingDocId(docId); fileInputRef.current.click(); };
+
+  return (
+    <>
+      <div className="topbar">
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button className="btn btn-outline btn-sm" onClick={onBack}>← Retour</button>
+          <div className="topbar-title">{dossier.nomClient}</div>
+          <StatusBadge completion={completion}/>
+        </div>
+        <div className="topbar-actions">
+          <button className="btn btn-outline btn-sm" style={{color:'var(--danger)',borderColor:'#FFCDD2'}} onClick={() => setConfirmDelete(true)}>🗑 Supprimer</button>
+        </div>
+      </div>
+
+      <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx"
+        style={{display:'none'}} onChange={e => { if (pendingDocId) uploadFilesForDoc(pendingDocId, e.target.files); e.target.value=''; }}/>
+
+      <div className="page-body">
+        <div className="detail-grid">
+          {/* LEFT: DOSSIER UPLOAD */}
+          <div>
+            {/* Infos rapides */}
+            <div className="card card-sm" style={{marginBottom:20,display:'flex',gap:24,flexWrap:'wrap'}}>
+              <div><div style={{fontSize:'0.7rem',color:'var(--mist)',marginBottom:2}}>MONTANT</div><strong>{fmtMontant(dossier.montant)}</strong></div>
+              <div><div style={{fontSize:'0.7rem',color:'var(--mist)',marginBottom:2}}>TRANCHE</div><strong style={{fontSize:'0.82rem'}}>{dossier.trancheLabel}</strong></div>
+              <div><div style={{fontSize:'0.7rem',color:'var(--mist)',marginBottom:2}}>TYPE CLIENT</div><strong>{dossier.typeClient === 'PHYS' ? 'Pers. Physique' : 'Pers. Morale'}</strong></div>
+              <div><div style={{fontSize:'0.7rem',color:'var(--mist)',marginBottom:2}}>CRÉÉ LE</div><strong>{fmtDate(dossier.createdAt)}</strong></div>
+              {dossier.duree && <div><div style={{fontSize:'0.7rem',color:'var(--mist)',marginBottom:2}}>DURÉE</div><strong>{dossier.duree}</strong></div>}
+            </div>
+
+            {completion < 100 && (
+              <div className="alert alert-warning" style={{marginBottom:16}}>
+                <span>⚠️</span>
+                <div>Dossier incomplet — <strong>{allDocs.filter(d=>d.required && !(dossier.files?.[d.id]?.length>0)).length} document(s) requis</strong> manquants.</div>
+              </div>
+            )}
+            {completion === 100 && (
+              <div className="alert alert-success" style={{marginBottom:16}}>
+                <span>✅</span>
+                <div><strong>Dossier complet !</strong> Tous les documents requis ont été uploadés.</div>
+              </div>
+            )}
+
+            {/* Sous-dossier tabs */}
+            <div className="sous-dossier-tabs">
+              {TAB_ORDER.map(t => {
+                const unlocked = isTabUnlocked(t);
+                const validated = validatedTabs.includes(t);
+                let cls = 'tab-btn';
+                if (activeTab === t) cls += ' active';
+                else if (!unlocked) cls += ' locked';
+                else if (validated) cls += ' validated';
+                return (
+                  <button key={t} className={cls}
+                    onClick={() => { if (unlocked) setActiveTab(t); }}
+                    title={!unlocked ? `Validez d'abord le sous-dossier ${TAB_ORDER[TAB_ORDER.indexOf(t)-1]}` : ''}>
+                    {validated && activeTab !== t && <span className="tab-icon">✅</span>}
+                    {!unlocked && <span className="tab-icon">🔒</span>}
+                    Sous-dossier {t}
+                    <span className="tab-count">{tabCounts[t]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Upload zone globale */}
+            <div
+              className={`upload-zone ${dragging==='zone' ? 'drag-over' : ''}`}
+              style={{marginBottom:16, opacity: isCurrentTabValidated ? 0.5 : 1, pointerEvents: isCurrentTabValidated ? 'none' : 'auto'}}
+              onDragOver={e=>{e.preventDefault();setDragging('zone')}}
+              onDragLeave={()=>setDragging(null)}
+              onDrop={e => { e.preventDefault(); setDragging(null); }}>
+              <div className="upload-icon">{isCurrentTabValidated ? '✅' : '📁'}</div>
+              <div className="upload-title">Sous-dossier {activeTab}</div>
+              <div className="upload-sub">{isCurrentTabValidated ? 'Sous-dossier validé — annulez pour modifier' : 'Cliquez sur un document ci-dessous pour uploader'}</div>
+            </div>
+
+            {/* Checklist documents */}
+            <div className="doc-checklist">
+              {currentDocs.map(doc => {
+                const uploaded = dossier.files?.[doc.id] || [];
+                const hasFile = uploaded.length > 0;
+                return (
+                  <div key={doc.id} className={`doc-item ${hasFile ? 'uploaded' : doc.required ? 'missing' : ''}`}>
+                    <div className={`doc-check ${hasFile ? 'ok' : doc.required ? 'req' : 'no'}`}>
+                      {hasFile ? '✓' : doc.required ? '!' : '○'}
+                    </div>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div className="doc-name">{doc.label}{doc.required && <span style={{color:'var(--rust)',marginLeft:4}}>*</span>}</div>
+                      {hasFile && (
+                        <div className="files-grid">
+                          {uploaded.map((f,i) => (
+                            <span key={i} className="file-pill">
+                              📎 {f.name.length > 22 ? f.name.slice(0,20)+'…' : f.name}
+                              {!isCurrentTabValidated && <button className="file-pill-remove" onClick={()=>removeFile(doc.id,i)}>×</button>}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="doc-actions">
+                      {!isCurrentTabValidated && (
+                        <button className="btn btn-outline btn-sm" onClick={() => triggerUpload(doc.id)}>
+                          {hasFile ? '+ Ajouter' : '↑ Uploader'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bandeau de validation du sous-dossier */}
+            {isCurrentTabValidated ? (
+              <div className="validation-banner done">
+                <div className="validation-banner-left">
+                  <div className="validation-banner-icon">✅</div>
+                  <div>
+                    <div className="validation-banner-title">Sous-dossier {activeTab} validé</div>
+                    <div className="validation-banner-sub">Ce sous-dossier a été validé. Les documents ne peuvent plus être modifiés.</div>
+                  </div>
+                </div>
+                <button className="btn-unvalidate" onClick={handleUnvalidateTab}>↩ Annuler la validation</button>
+              </div>
+            ) : isCurrentTabComplete ? (
+              <div className="validation-banner ready">
+                <div className="validation-banner-left">
+                  <div className="validation-banner-icon">🎯</div>
+                  <div>
+                    <div className="validation-banner-title">Sous-dossier {activeTab} complet !</div>
+                    <div className="validation-banner-sub">Tous les documents obligatoires sont présents. Vous pouvez valider pour {nextTab ? `passer au sous-dossier ${nextTab}` : 'finaliser le dossier'}.</div>
+                  </div>
+                </div>
+                <button className="btn-validate" onClick={handleValidateTab}>
+                  ✓ Valider le sous-dossier {activeTab}
+                  {nextTab && <span style={{opacity:0.8}}>→ {nextTab}</span>}
+                </button>
+              </div>
+            ) : (
+              <div className="validation-banner incomplete">
+                <div className="validation-banner-left">
+                  <div className="validation-banner-icon">⚠️</div>
+                  <div>
+                    <div className="validation-banner-title">{missingCount} document{missingCount > 1 ? 's' : ''} obligatoire{missingCount > 1 ? 's' : ''} manquant{missingCount > 1 ? 's' : ''}</div>
+                    <div className="validation-banner-sub">Uploadez tous les documents requis (marqués *) pour pouvoir valider ce sous-dossier.</div>
+                  </div>
+                </div>
+                <button className="btn-validate" disabled>Valider le sous-dossier {activeTab}</button>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: Infos + Historique */}
+          <div style={{display:'flex',flexDirection:'column',gap:20}}>
+            {/* Progression */}
+            <div className="card" style={{textAlign:'center'}}>
+              <div style={{display:'flex',justifyContent:'center',marginBottom:12}}>
+                <Ring pct={completion} size={90} stroke={8}/>
+              </div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:'0.9rem'}}>Complétion du dossier</div>
+              <div style={{fontSize:'0.78rem',color:'var(--mist)',marginTop:4}}>
+                {allDocs.filter(d=>d.required&&dossier.files?.[d.id]?.length>0).length}/{allDocs.filter(d=>d.required).length} doc. obligatoires
+              </div>
+            </div>
+
+            {/* Infos client */}
+            <div className="card">
+              <div className="section-title" style={{marginBottom:12}}>Client</div>
+              <div className="info-row"><span className="info-key">Nom</span><span className="info-val">{dossier.nomClient}</span></div>
+              {dossier.telephone && <div className="info-row"><span className="info-key">Tél.</span><span className="info-val">{dossier.telephone}</span></div>}
+              {dossier.email && <div className="info-row"><span className="info-key">Email</span><span className="info-val" style={{fontSize:'0.8rem'}}>{dossier.email}</span></div>}
+              {dossier.adresse && <div className="info-row"><span className="info-key">Adresse</span><span className="info-val">{dossier.adresse}</span></div>}
+              {dossier.objet && <div className="info-row" style={{borderBottom:'none',paddingTop:10}}><span className="info-key">Objet</span><span className="info-val" style={{fontSize:'0.8rem',textAlign:'right',maxWidth:'60%'}}>{dossier.objet}</span></div>}
+            </div>
+
+            {/* Historique */}
+            <div className="card">
+              <div className="section-title" style={{marginBottom:14}}>Historique</div>
+              <div className="timeline">
+                {[...(dossier.historique||[])].reverse().slice(0,8).map((h, i) => (
+                  <div key={i} className="timeline-item">
+                    <div className={`timeline-dot ${i===0?'gold':''}`}>{h.icon||'•'}</div>
+                    <div className="timeline-content">
+                      <div className="timeline-action">{h.action}</div>
+                      <div className="timeline-time">{fmtDate(h.at)} {new Date(h.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CONFIRM DELETE MODAL */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal" style={{maxWidth:420}} onClick={e=>e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">⚠️ Supprimer ce dossier ?</div>
+              <button className="modal-close" onClick={() => setConfirmDelete(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{fontSize:'0.9rem'}}>Vous êtes sur le point de supprimer définitivement le dossier de <strong>{dossier.nomClient}</strong> ainsi que tous les fichiers associés. Cette action est irréversible.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setConfirmDelete(false)}>Annuler</button>
+              <button className="btn btn-danger" onClick={onDelete}>Supprimer définitivement</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
