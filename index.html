@@ -228,7 +228,9 @@
     display: inline-flex; align-items: center; gap: 6px;
     background: var(--cream); border: 1px solid var(--border);
     padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;
+    transition: all 0.15s;
   }
+  .file-pill:hover { background: #BDE0F8; border-color: #2D8FD4; color: #1A78C2; }
   .file-pill-remove { background: none; border: none; cursor: pointer; color: var(--mist); font-size: 0.9rem; line-height: 1; padding: 0 2px; }
   .file-pill-remove:hover { color: var(--danger); }
 
@@ -883,6 +885,67 @@ function fileToBase64(file) {
   });
 }
 
+// ─── FILE VIEWER MODAL ───────────────────────────────────────────────────────
+function FileViewer({ file, onClose }) {
+  if (!file) return null;
+  const isImage = file.type?.startsWith('image/');
+  const isPdf   = file.type === 'application/pdf';
+
+  const handleDownload = () => {
+    const a = document.createElement('a');
+    a.href = file.data;
+    a.download = file.name;
+    a.click();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{zIndex:2000}}>
+      <div className="modal" style={{maxWidth: isPdf ? 860 : 720, maxHeight:'92vh', display:'flex', flexDirection:'column'}}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="modal-header" style={{borderBottom:'1px solid var(--border)',paddingBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+            <span style={{fontSize:'1.3rem'}}>{isImage ? '🖼️' : isPdf ? '📄' : '📎'}</span>
+            <div style={{minWidth:0}}>
+              <div className="modal-title" style={{fontSize:'1rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:480}}>
+                {file.name}
+              </div>
+              <div style={{fontSize:'0.72rem',color:'var(--mist)',marginTop:2}}>
+                {file.type || 'Fichier'} · {file.size ? (file.size/1024).toFixed(1)+' Ko' : ''}
+              </div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,flexShrink:0}}>
+            <button className="btn btn-outline btn-sm" onClick={handleDownload}>⬇ Télécharger</button>
+            <button className="modal-close" onClick={onClose} style={{fontSize:'1.2rem',fontWeight:700}}>×</button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{flex:1,overflow:'auto',padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f4f8',minHeight:200}}>
+          {isImage && (
+            <img src={file.data} alt={file.name}
+              style={{maxWidth:'100%',maxHeight:'70vh',objectFit:'contain',borderRadius:8,boxShadow:'0 4px 20px rgba(0,0,0,0.15)'}}/>
+          )}
+          {isPdf && (
+            <iframe src={file.data} title={file.name}
+              style={{width:'100%',height:'70vh',border:'none',borderRadius:8}}/>
+          )}
+          {!isImage && !isPdf && (
+            <div style={{textAlign:'center',padding:40}}>
+              <div style={{fontSize:'4rem',marginBottom:16}}>📎</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,marginBottom:8}}>{file.name}</div>
+              <div style={{color:'var(--mist)',fontSize:'0.85rem',marginBottom:20}}>Aperçu non disponible pour ce type de fichier.</div>
+              <button className="btn btn-primary" onClick={handleDownload}>⬇ Télécharger le fichier</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── COMPLETION RING SVG ──────────────────────────────────────────────────────
 function Ring({ pct, size = 64, stroke = 6 }) {
   const r = (size - stroke) / 2;
@@ -1037,7 +1100,7 @@ function App() {
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="logo-badge"><div className="logo-dot"/>Gestion Crédit</div>
+          <div className="logo-badge"><div className="logo"/>Gestion Crédit</div>
           <div className="sidebar-subtitle">Gestionnaire de dossiers</div>
         </div>
         <nav className="sidebar-nav">
@@ -1321,6 +1384,7 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
   const [activeTab, setActiveTab] = useState('A');
   const [dragging, setDragging] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [viewingFile, setViewingFile] = useState(null);
   const fileInputRef = useRef();
   // Utiliser un ref au lieu d'un state pour éviter le problème de closure stale
   const pendingDocIdRef = useRef(null);
@@ -1536,9 +1600,15 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
                       {hasFile && (
                         <div className="files-grid">
                           {uploaded.map((f,i) => (
-                            <span key={i} className="file-pill">
-                              📎 {f.name.length > 22 ? f.name.slice(0,20)+'…' : f.name}
-                              {!isCurrentTabValidated && <button className="file-pill-remove" onClick={()=>removeFile(doc.id,i)}>×</button>}
+                            <span key={i} className="file-pill" style={{cursor:'pointer'}}
+                              onClick={() => setViewingFile(f)}
+                              title="Cliquer pour visualiser">
+                              {f.type?.startsWith('image/') ? '🖼️' : f.type==='application/pdf' ? '📄' : '📎'}
+                              {' '}{f.name.length > 22 ? f.name.slice(0,20)+'…' : f.name}
+                              {!isCurrentTabValidated && (
+                                <button className="file-pill-remove"
+                                  onClick={e => { e.stopPropagation(); removeFile(doc.id,i); }}>×</button>
+                              )}
                             </span>
                           ))}
                         </div>
@@ -1571,7 +1641,7 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
             ) : isCurrentTabComplete ? (
               <div className="validation-banner ready">
                 <div className="validation-banner-left">
-                  <div className="validation-banner-icon">🎯</div>
+                  <div className="validation-banner-icon"></div>
                   <div>
                     <div className="validation-banner-title">Sous-dossier {activeTab} complet !</div>
                     <div className="validation-banner-sub">Tous les documents obligatoires sont présents. Vous pouvez valider pour {nextTab ? `passer au sous-dossier ${nextTab}` : 'finaliser le dossier'}.</div>
@@ -1637,6 +1707,9 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
           </div>
         </div>
       </div>
+
+      {/* FILE VIEWER */}
+      {viewingFile && <FileViewer file={viewingFile} onClose={() => setViewingFile(null)}/>}
 
       {/* CONFIRM DELETE MODAL */}
       {confirmDelete && (
