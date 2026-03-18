@@ -831,7 +831,12 @@ function genId() { return Date.now().toString(36) + Math.random().toString(36).s
 
 function getTranche(montant) {
   const m = Number(montant);
-  return TRANCHES.find(t => m >= t.min && m < t.max) || TRANCHES[0];
+  // Utiliser <= pour les bornes supérieures pour éviter les bugs aux limites exactes
+  if (m >= 50000 && m <= 500000)    return TRANCHES[0];
+  if (m > 500000 && m <= 3000000)   return TRANCHES[1];
+  if (m > 3000000 && m <= 10000000) return TRANCHES[2];
+  if (m > 10000000)                 return TRANCHES[3];
+  return TRANCHES[0];
 }
 
 function getDocsForDossier(trancheId, typeClient) {
@@ -1317,7 +1322,13 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
   const [dragging, setDragging] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef();
-  const [pendingDocId, setPendingDocId] = useState(null);
+  // Utiliser un ref au lieu d'un state pour éviter le problème de closure stale
+  const pendingDocIdRef = useRef(null);
+
+  // Réinitialiser l'onglet actif quand le dossier change
+  useEffect(() => {
+    setActiveTab('A');
+  }, [dossier.id]);
 
   const docs = getDocsForDossier(dossier.trancheId, dossier.typeClient);
   const completion = calcCompletion(dossier);
@@ -1423,7 +1434,11 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
     if (files?.length) await uploadFilesForDoc(docId, files);
   };
 
-  const triggerUpload = (docId) => { setPendingDocId(docId); fileInputRef.current.click(); };
+  const triggerUpload = (docId) => {
+    pendingDocIdRef.current = docId;
+    fileInputRef.current.value = '';
+    fileInputRef.current.click();
+  };
 
   return (
     <>
@@ -1439,7 +1454,12 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
       </div>
 
       <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx"
-        style={{display:'none'}} onChange={e => { if (pendingDocId) uploadFilesForDoc(pendingDocId, e.target.files); e.target.value=''; }}/>
+        style={{display:'none'}} onChange={e => {
+          const docId = pendingDocIdRef.current;
+          if (docId && e.target.files?.length) uploadFilesForDoc(docId, e.target.files);
+          e.target.value = '';
+          pendingDocIdRef.current = null;
+        }}/>
 
       <div className="page-body">
         <div className="detail-grid">
