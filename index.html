@@ -158,7 +158,6 @@
     background: white; transition: border-color 0.15s; outline: none;
   }
   .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: #2D8FD4; }
-  .form-input.error, .form-select.error { border-color: var(--danger); }
   .form-textarea { min-height: 80px; resize: vertical; }
   .form-hint { font-size: 0.72rem; color: var(--mist); }
 
@@ -601,7 +600,7 @@ const DOCS_CONFIG = {
         { id: 't2_anemcam_c',        label: 'ANEMCAM',                                  required: true },
       ],
       D: [
-        { id: 't2_caution_salarie',  label: "Caution personnelle d'un salarié (avaliseur)", required: true },
+        { id: 't2_caution_salarie',  label: "Caution personnelle d'un salarié (avaliseur)", required: false },
         { id: 't2_garantie_fonc',    label: 'Garantie foncière (contrat de vente parcelle, TF)', required: false },
         { id: 't2_gage_vehic',       label: 'Gage sur véhicule',                                 required: false },
       ],
@@ -670,8 +669,8 @@ const DOCS_CONFIG = {
         { id: 't3_anemcam_c',        label: 'ANEMCAM',                                  required: true },
       ],
       D: [
-        { id: 't3_garantie_fonc_titre', label: 'Garantie foncière du titre — dépôt libre du titre foncier notarié, certificat de vente terrain', required: true },
-        { id: 't3_nantissement',        label: 'Nantissement',                                                                                    required: true },
+        { id: 't3_garantie_fonc_titre', label: 'Garantie foncière du titre — dépôt libre du titre foncier notarié, certificat de vente terrain', required: false },
+        { id: 't3_nantissement',        label: 'Nantissement',                                                                                    required: false },
       ],
     },
     MORA: {
@@ -738,9 +737,9 @@ const DOCS_CONFIG = {
         { id: 't4_anemcam_c',        label: 'ANEMCAM',                                  required: true },
       ],
       D: [
-        { id: 't4_domiciliation',     label: 'Domiciliation des recettes dans les livres de FTSL',           required: true },
-        { id: 't4_nantissement',      label: 'Nantissement sous seing privé, faveur FTSL',                   required: true },
-        { id: 't4_garantie_notaire',  label: 'Garantie foncière (titre foncier notarié, certificat de vente)', required: true },
+        { id: 't4_domiciliation',     label: 'Domiciliation des recettes dans les livres de FTSL',           required: false },
+        { id: 't4_nantissement',      label: 'Nantissement sous seing privé, faveur FTSL',                   required: false },
+        { id: 't4_garantie_notaire',  label: 'Garantie foncière (titre foncier notarié, certificat de vente)', required: false },
       ],
     },
     MORA: {
@@ -907,13 +906,8 @@ function StatusBadge({ completion }) {
 }
 
 // ─── MOT DE PASSE (modifiable ici) ───────────────────────────────────────────
-const APP_PASSWORD_DEFAULT = 'gestionnaire2024';
+const APP_PASSWORD = 'gestionnaire2024';
 const SESSION_KEY = 'nbs_auth_session';
-const PWD_KEY = 'nbs_app_password';
-
-function getAppPassword() {
-  return localStorage.getItem(PWD_KEY) || APP_PASSWORD_DEFAULT;
-}
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
@@ -926,7 +920,7 @@ function LoginScreen({ onLogin }) {
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = () => {
-    if (password === getAppPassword()) {
+    if (password === APP_PASSWORD) {
       sessionStorage.setItem(SESSION_KEY, 'true');
       onLogin();
     } else {
@@ -1068,9 +1062,6 @@ function App() {
           </div>
         </nav>
         <div className="sidebar-footer" style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div onClick={() => setPage('password')} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:"0.78rem",padding:"6px 0",borderRadius:6,transition:"color 0.15s"}} onMouseEnter={e=>e.currentTarget.style.color="#87CEEB"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.5)"}>
-            <span>🔑</span> Changer le mot de passe
-          </div>
           <div onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:"0.78rem",padding:"6px 0",borderRadius:6,transition:"color 0.15s"}} onMouseEnter={e=>e.currentTarget.style.color="#87CEEB"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.5)"}>
             <span>🔓</span> Se déconnecter
           </div>
@@ -1181,13 +1172,6 @@ function App() {
               setPage('dashboard');
             }}/>
         )}
-
-        {page === 'password' && (
-          <ChangerMotDePasse
-            onCancel={() => setPage('dashboard')}
-            onSuccess={() => setPage('dashboard')}
-          />
-        )}
       </main>
 
       {/* MOBILE BOTTOM NAV */}
@@ -1204,140 +1188,9 @@ function App() {
           <span className="mnav-icon">➕</span>
           <span>Nouveau</span>
         </button>
-        <button className={`mobile-nav-item ${page==='password'?'active':''}`} onClick={() => setPage('password')}>
-          <span className="mnav-icon">🔑</span>
-          <span>Mot de passe</span>
-        </button>
       </nav>
 
     </div>
-  );
-}
-
-// ─── CHANGER MOT DE PASSE ────────────────────────────────────────────────────
-function ChangerMotDePasse({ onCancel, onSuccess }) {
-  const [form, setForm] = useState({ ancien: '', nouveau: '', confirm: '' });
-  const [showAncien, setShowAncien] = useState(false);
-  const [showNouveau, setShowNouveau] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [success, setSuccess] = useState(false);
-
-  const set = (k, v) => setForm(f => ({...f, [k]: v}));
-
-  const handleSubmit = () => {
-    const e = {};
-    if (!form.ancien) e.ancien = 'Requis';
-    else if (form.ancien !== getAppPassword()) e.ancien = 'Mot de passe actuel incorrect';
-    if (!form.nouveau) e.nouveau = 'Requis';
-    else if (form.nouveau.length < 6) e.nouveau = 'Minimum 6 caractères';
-    if (!form.confirm) e.confirm = 'Requis';
-    else if (form.nouveau !== form.confirm) e.confirm = 'Les mots de passe ne correspondent pas';
-    setErrors(e);
-    if (Object.keys(e).length > 0) return;
-
-    localStorage.setItem(PWD_KEY, form.nouveau);
-    setSuccess(true);
-    setTimeout(() => { onSuccess && onSuccess(); }, 1800);
-  };
-
-  return (
-    <>
-      <div className="topbar">
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <button className="btn btn-outline btn-sm" onClick={onCancel}>← Retour</button>
-          <div className="topbar-title">Changer le mot de passe</div>
-        </div>
-      </div>
-
-      <div className="page-body" style={{maxWidth:480}}>
-        {success ? (
-          <div className="card" style={{textAlign:'center',padding:'48px 32px'}}>
-            <div style={{fontSize:'3rem',marginBottom:16}}>✅</div>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:'1.2rem',marginBottom:8}}>Mot de passe modifié !</div>
-            <div style={{color:'var(--mist)',fontSize:'0.88rem'}}>Votre nouveau mot de passe est actif. Redirection…</div>
-          </div>
-        ) : (
-          <div className="card">
-            <div className="section-title" style={{marginBottom:4}}>Modifier le mot de passe</div>
-            <div style={{fontSize:'0.8rem',color:'var(--mist)',marginBottom:24}}>Le nouveau mot de passe sera sauvegardé dans ce navigateur.</div>
-
-            {/* Mot de passe actuel */}
-            <div className="form-group" style={{marginBottom:18}}>
-              <label className="form-label">Mot de passe actuel <span style={{color:'var(--danger)'}}>*</span></label>
-              <div style={{position:'relative'}}>
-                <input className={`form-input ${errors.ancien?'error':''}`} style={{width:'100%',paddingRight:44}}
-                  type={showAncien?'text':'password'} value={form.ancien}
-                  onChange={e=>set('ancien',e.target.value)}
-                  placeholder="Votre mot de passe actuel"/>
-                <button type="button" onClick={()=>setShowAncien(v=>!v)}
-                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:'var(--mist)'}}>
-                  {showAncien?'🙈':'👁️'}
-                </button>
-              </div>
-              {errors.ancien && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.ancien}</span>}
-            </div>
-
-            {/* Nouveau mot de passe */}
-            <div className="form-group" style={{marginBottom:18}}>
-              <label className="form-label">Nouveau mot de passe <span style={{color:'var(--danger)'}}>*</span></label>
-              <div style={{position:'relative'}}>
-                <input className={`form-input ${errors.nouveau?'error':''}`} style={{width:'100%',paddingRight:44}}
-                  type={showNouveau?'text':'password'} value={form.nouveau}
-                  onChange={e=>set('nouveau',e.target.value)}
-                  placeholder="Minimum 6 caractères"/>
-                <button type="button" onClick={()=>setShowNouveau(v=>!v)}
-                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:'var(--mist)'}}>
-                  {showNouveau?'🙈':'👁️'}
-                </button>
-              </div>
-              {errors.nouveau && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.nouveau}</span>}
-              {/* Barre de force */}
-              {form.nouveau && (() => {
-                const len = form.nouveau.length;
-                const force = len < 6 ? 1 : len < 10 ? 2 : 3;
-                const colors = ['#C0392B','#E67E22','#2D8FD4'];
-                const labels = ['Faible','Moyen','Fort'];
-                return (
-                  <div style={{marginTop:6}}>
-                    <div style={{display:'flex',gap:4,marginBottom:3}}>
-                      {[1,2,3].map(i => (
-                        <div key={i} style={{flex:1,height:4,borderRadius:4,background: i<=force ? colors[force-1] : 'var(--border)',transition:'background 0.2s'}}/>
-                      ))}
-                    </div>
-                    <div style={{fontSize:'0.7rem',color:colors[force-1],fontWeight:600}}>{labels[force-1]}</div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Confirmer */}
-            <div className="form-group" style={{marginBottom:28}}>
-              <label className="form-label">Confirmer le nouveau mot de passe <span style={{color:'var(--danger)'}}>*</span></label>
-              <div style={{position:'relative'}}>
-                <input className={`form-input ${errors.confirm?'error':''}`} style={{width:'100%',paddingRight:44}}
-                  type={showConfirm?'text':'password'} value={form.confirm}
-                  onChange={e=>set('confirm',e.target.value)}
-                  placeholder="Répéter le nouveau mot de passe"
-                  onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/>
-                <button type="button" onClick={()=>setShowConfirm(v=>!v)}
-                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:'var(--mist)'}}>
-                  {showConfirm?'🙈':'👁️'}
-                </button>
-              </div>
-              {errors.confirm && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.confirm}</span>}
-              {form.confirm && form.nouveau === form.confirm && !errors.confirm &&
-                <span style={{color:'#2D8FD4',fontSize:'0.75rem'}}>✓ Les mots de passe correspondent</span>}
-            </div>
-
-            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
-              <button className="btn btn-outline" onClick={onCancel}>Annuler</button>
-              <button className="btn btn-primary" onClick={handleSubmit}>🔒 Enregistrer le nouveau mot de passe</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
   );
 }
 
@@ -1354,41 +1207,11 @@ function NouveauDossier({ onSave, onCancel }) {
 
   const tranche = form.montant ? getTranche(form.montant) : null;
 
-  // ── Validation numéro de compte bancaire ──────────────────────────────────
-  // RIB local CEMAC/Cameroun : 23 chiffres (5 banque + 5 guichet + 11 compte + 2 clé)
-  // IBAN international       : 2 lettres pays + 2 chiffres contrôle + jusqu'à 30 car. → max 34
-  const RIB_REGEX  = /^\d{23}$/;
-  const IBAN_REGEX = /^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/;
-
-  function validateCompte(val) {
-    if (!val) return 'Requis';
-    const v = val.replace(/\s+/g, '').toUpperCase();
-    if (/^\d+$/.test(v)) {
-      // Mode RIB local : exactement 23 chiffres
-      if (!RIB_REGEX.test(v)) return `RIB local : exactement 23 chiffres requis (actuellement ${v.length})`;
-    } else {
-      // Mode IBAN : 2 lettres + 2 chiffres + max 30 car. alphanum = 34 max
-      if (!IBAN_REGEX.test(v)) return 'IBAN invalide — format : XX00 + jusqu\'à 30 caractères (ex: CM2110029260110131825310134)';
-      if (v.length > 34) return `IBAN trop long : max 34 caractères (actuellement ${v.length})`;
-    }
-    return null;
-  }
-
-  function getCompteType(val) {
-    if (!val) return null;
-    const v = val.replace(/\s+/g, '').toUpperCase();
-    if (/^\d+$/.test(v)) return 'rib';
-    if (/^[A-Z]{2}/.test(v)) return 'iban';
-    return null;
-  }
-
   const validate = () => {
     const e = {};
     if (!form.nomClient.trim()) e.nomClient = 'Requis';
     if (!form.montant || Number(form.montant) < 50000) e.montant = 'Montant minimum : 50 000 FCFA';
     if (!form.objet.trim()) e.objet = 'Requis';
-    const compteErr = validateCompte(form.numeroDossier);
-    if (compteErr) e.numeroDossier = compteErr;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1477,57 +1300,9 @@ function NouveauDossier({ onSave, onCancel }) {
               <textarea className="form-textarea" value={form.objet} onChange={e=>set('objet',e.target.value)} placeholder="Décrire l'objet du financement..."/>
               {errors.objet && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.objet}</span>}
             </div>
-            <div className="form-group full">
-              <label className="form-label">N° Compte bancaire <span>*</span></label>
-              {/* Aide contextuelle */}
-              <div style={{display:'flex',gap:8,marginBottom:6,flexWrap:'wrap'}}>
-                <span style={{fontSize:'0.7rem',padding:'2px 8px',borderRadius:20,background:'#E3EFFF',color:'#1557A0',fontWeight:600,cursor:'pointer'}}
-                  onClick={()=>set('numeroDossier','')}>
-                  RIB local (23 chiffres)
-                </span>
-                <span style={{fontSize:'0.7rem',padding:'2px 8px',borderRadius:20,background:'#E3EFFF',color:'#1557A0',fontWeight:600,cursor:'pointer'}}
-                  onClick={()=>set('numeroDossier','CM')}>
-                  IBAN Cameroun (CM…)
-                </span>
-              </div>
-              <div style={{position:'relative'}}>
-                <input
-                  className={`form-input ${errors.numeroDossier ? 'error' : (form.numeroDossier && !validateCompte(form.numeroDossier)) ? 'success' : ''}`}
-                  style={{
-                    width:'100%', fontFamily:'monospace', letterSpacing:'0.05em',
-                    borderColor: form.numeroDossier && !validateCompte(form.numeroDossier) ? '#2D8FD4' : undefined
-                  }}
-                  value={form.numeroDossier}
-                  onChange={e => {
-                    // Supprimer les espaces, forcer majuscules pour IBAN
-                    let v = e.target.value.replace(/\s+/g,'');
-                    if (/^[a-zA-Z]/.test(v)) v = v.toUpperCase();
-                    set('numeroDossier', v);
-                  }}
-                  placeholder="Ex: 10029260110131825310134 ou CM21…"
-                  maxLength={34}
-                />
-                {/* Indicateur de type détecté */}
-                {form.numeroDossier && (
-                  <span style={{
-                    position:'absolute', right:12, top:'50%', transform:'translateY(-50%)',
-                    fontSize:'0.68rem', fontWeight:700, padding:'2px 7px', borderRadius:10,
-                    background: getCompteType(form.numeroDossier)==='rib' ? '#E3EFFF' : getCompteType(form.numeroDossier)==='iban' ? '#D6ECFA' : '#FFF0EE',
-                    color: getCompteType(form.numeroDossier)==='rib' ? '#1557A0' : getCompteType(form.numeroDossier)==='iban' ? '#1A78C2' : 'var(--danger)',
-                  }}>
-                    {getCompteType(form.numeroDossier)==='rib' ? `RIB · ${form.numeroDossier.length}/23` : getCompteType(form.numeroDossier)==='iban' ? `IBAN · ${form.numeroDossier.length}/34` : '?'}
-                  </span>
-                )}
-              </div>
-              {errors.numeroDossier && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>⚠ {errors.numeroDossier}</span>}
-              {form.numeroDossier && !validateCompte(form.numeroDossier) && (
-                <span style={{color:'#2D8FD4',fontSize:'0.75rem'}}>
-                  ✓ {getCompteType(form.numeroDossier)==='rib' ? 'Format RIB local valide (23 chiffres)' : 'Format IBAN valide'}
-                </span>
-              )}
-              <div style={{fontSize:'0.7rem',color:'var(--mist)',marginTop:4}}>
-                RIB local : 23 chiffres exactement · IBAN : commence par 2 lettres (ex: CM, FR…) · max 34 caractères
-              </div>
+            <div className="form-group">
+              <label className="form-label">N° Compte (optionnel)</label>
+              <input className="form-input" value={form.numeroDossier} onChange={e=>set('numeroDossier',e.target.value)} placeholder="Laissez vide pour auto-génération"/>
             </div>
           </div>
         </div>
