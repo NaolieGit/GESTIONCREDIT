@@ -906,8 +906,13 @@ function StatusBadge({ completion }) {
 }
 
 // ─── MOT DE PASSE (modifiable ici) ───────────────────────────────────────────
-const APP_PASSWORD = 'gestionnaire2024';
+const APP_PASSWORD_DEFAULT = 'gestionnaire2024';
 const SESSION_KEY = 'nbs_auth_session';
+const PWD_KEY = 'nbs_app_password';
+
+function getAppPassword() {
+  return localStorage.getItem(PWD_KEY) || APP_PASSWORD_DEFAULT;
+}
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
@@ -920,7 +925,7 @@ function LoginScreen({ onLogin }) {
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = () => {
-    if (password === APP_PASSWORD) {
+    if (password === getAppPassword()) {
       sessionStorage.setItem(SESSION_KEY, 'true');
       onLogin();
     } else {
@@ -1062,6 +1067,9 @@ function App() {
           </div>
         </nav>
         <div className="sidebar-footer" style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div onClick={() => setPage('password')} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:"0.78rem",padding:"6px 0",borderRadius:6,transition:"color 0.15s"}} onMouseEnter={e=>e.currentTarget.style.color="#87CEEB"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.5)"}>
+            <span>🔑</span> Changer le mot de passe
+          </div>
           <div onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:"0.78rem",padding:"6px 0",borderRadius:6,transition:"color 0.15s"}} onMouseEnter={e=>e.currentTarget.style.color="#87CEEB"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.5)"}>
             <span>🔓</span> Se déconnecter
           </div>
@@ -1172,6 +1180,13 @@ function App() {
               setPage('dashboard');
             }}/>
         )}
+
+        {page === 'password' && (
+          <ChangerMotDePasse
+            onCancel={() => setPage('dashboard')}
+            onSuccess={() => setPage('dashboard')}
+          />
+        )}
       </main>
 
       {/* MOBILE BOTTOM NAV */}
@@ -1188,9 +1203,136 @@ function App() {
           <span className="mnav-icon">➕</span>
           <span>Nouveau</span>
         </button>
+        <button className={`mobile-nav-item ${page==='password'?'active':''}`} onClick={() => setPage('password')}>
+          <span className="mnav-icon">🔑</span>
+          <span>Mot de passe</span>
+        </button>
       </nav>
 
     </div>
+  );
+}
+
+// ─── CHANGER MOT DE PASSE ────────────────────────────────────────────────────
+function ChangerMotDePasse({ onCancel, onSuccess }) {
+  const [form, setForm] = useState({ ancien: '', nouveau: '', confirm: '' });
+  const [showAncien, setShowAncien] = useState(false);
+  const [showNouveau, setShowNouveau] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [success, setSuccess] = useState(false);
+
+  const set = (k, v) => setForm(f => ({...f, [k]: v}));
+
+  const handleSubmit = () => {
+    const e = {};
+    if (!form.ancien) e.ancien = 'Requis';
+    else if (form.ancien !== getAppPassword()) e.ancien = 'Mot de passe actuel incorrect';
+    if (!form.nouveau) e.nouveau = 'Requis';
+    else if (form.nouveau.length < 6) e.nouveau = 'Minimum 6 caractères';
+    if (!form.confirm) e.confirm = 'Requis';
+    else if (form.nouveau !== form.confirm) e.confirm = 'Les mots de passe ne correspondent pas';
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+
+    localStorage.setItem(PWD_KEY, form.nouveau);
+    setSuccess(true);
+    setTimeout(() => { onSuccess && onSuccess(); }, 1800);
+  };
+
+  return (
+    <>
+      <div className="topbar">
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button className="btn btn-outline btn-sm" onClick={onCancel}>← Retour</button>
+          <div className="topbar-title">Changer le mot de passe</div>
+        </div>
+      </div>
+
+      <div className="page-body" style={{maxWidth:480}}>
+        {success ? (
+          <div className="card" style={{textAlign:'center',padding:'48px 32px'}}>
+            <div style={{fontSize:'3rem',marginBottom:16}}>✅</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:'1.2rem',marginBottom:8}}>Mot de passe modifié !</div>
+            <div style={{color:'var(--mist)',fontSize:'0.88rem'}}>Votre nouveau mot de passe est actif. Redirection…</div>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="section-title" style={{marginBottom:4}}>Modifier le mot de passe</div>
+            <div style={{fontSize:'0.8rem',color:'var(--mist)',marginBottom:24}}>Le nouveau mot de passe sera sauvegardé dans ce navigateur.</div>
+
+            <div className="form-group" style={{marginBottom:18}}>
+              <label className="form-label">Mot de passe actuel <span style={{color:'var(--danger)'}}>*</span></label>
+              <div style={{position:'relative'}}>
+                <input className={`form-input ${errors.ancien?'error':''}`} style={{width:'100%',paddingRight:44}}
+                  type={showAncien?'text':'password'} value={form.ancien}
+                  onChange={e=>set('ancien',e.target.value)}
+                  placeholder="Votre mot de passe actuel"/>
+                <button type="button" onClick={()=>setShowAncien(v=>!v)}
+                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:'var(--mist)'}}>
+                  {showAncien?'🙈':'👁️'}
+                </button>
+              </div>
+              {errors.ancien && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.ancien}</span>}
+            </div>
+
+            <div className="form-group" style={{marginBottom:18}}>
+              <label className="form-label">Nouveau mot de passe <span style={{color:'var(--danger)'}}>*</span></label>
+              <div style={{position:'relative'}}>
+                <input className={`form-input ${errors.nouveau?'error':''}`} style={{width:'100%',paddingRight:44}}
+                  type={showNouveau?'text':'password'} value={form.nouveau}
+                  onChange={e=>set('nouveau',e.target.value)}
+                  placeholder="Minimum 6 caractères"/>
+                <button type="button" onClick={()=>setShowNouveau(v=>!v)}
+                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:'var(--mist)'}}>
+                  {showNouveau?'🙈':'👁️'}
+                </button>
+              </div>
+              {errors.nouveau && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.nouveau}</span>}
+              {form.nouveau && (() => {
+                const len = form.nouveau.length;
+                const force = len < 6 ? 1 : len < 10 ? 2 : 3;
+                const colors = ['#C0392B','#E67E22','#2D8FD4'];
+                const labels = ['Faible','Moyen','Fort'];
+                return (
+                  <div style={{marginTop:6}}>
+                    <div style={{display:'flex',gap:4,marginBottom:3}}>
+                      {[1,2,3].map(i => (
+                        <div key={i} style={{flex:1,height:4,borderRadius:4,background: i<=force ? colors[force-1] : 'var(--border)',transition:'background 0.2s'}}/>
+                      ))}
+                    </div>
+                    <div style={{fontSize:'0.7rem',color:colors[force-1],fontWeight:600}}>{labels[force-1]}</div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="form-group" style={{marginBottom:28}}>
+              <label className="form-label">Confirmer le nouveau mot de passe <span style={{color:'var(--danger)'}}>*</span></label>
+              <div style={{position:'relative'}}>
+                <input className={`form-input ${errors.confirm?'error':''}`} style={{width:'100%',paddingRight:44}}
+                  type={showConfirm?'text':'password'} value={form.confirm}
+                  onChange={e=>set('confirm',e.target.value)}
+                  placeholder="Répéter le nouveau mot de passe"
+                  onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/>
+                <button type="button" onClick={()=>setShowConfirm(v=>!v)}
+                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:'var(--mist)'}}>
+                  {showConfirm?'🙈':'👁️'}
+                </button>
+              </div>
+              {errors.confirm && <span style={{color:'var(--danger)',fontSize:'0.75rem'}}>{errors.confirm}</span>}
+              {form.confirm && form.nouveau === form.confirm && !errors.confirm &&
+                <span style={{color:'#2D8FD4',fontSize:'0.75rem'}}>✓ Les mots de passe correspondent</span>}
+            </div>
+
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button className="btn btn-outline" onClick={onCancel}>Annuler</button>
+              <button className="btn btn-primary" onClick={handleSubmit}>🔒 Enregistrer le nouveau mot de passe</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
