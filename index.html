@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1409,8 +1410,85 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
   const [activeTab, setActiveTab] = useState('A');
   const [dragging, setDragging] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const fileInputRef = useRef();
   const [pendingDocId, setPendingDocId] = useState(null);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const zip = new JSZip();
+      const docs = getDocsForDossier(dossier.trancheId, dossier.typeClient, dossier.casSousB);
+      const casSousB = dossier.casSousB || 'CAS1';
+      const TAB_LABELS_DL = {
+        A: 'Sous-dossier A',
+        B: casSousB === 'CAS2' ? 'Sous-dossier B - Credit en cours' : 'Sous-dossier B - Aucun credit',
+        C: 'Sous-dossier C - Garanties',
+        D: 'Sous-dossier D - Litiges',
+      };
+
+      const recap = [
+        `DOSSIER DE CREDIT - ${dossier.nomClient}`,
+        `==========================================`,
+        `N° Compte       : ${dossier.numeroDossier || '—'}`,
+        `Type client     : ${dossier.typeClient === 'PHYS' ? 'Personne Physique' : 'Personne Morale'}`,
+        `Montant         : ${fmtMontant(dossier.montant)}`,
+        `Tranche         : ${dossier.trancheLabel}`,
+        `Situation B     : ${casSousB === 'CAS2' ? 'Crédit en cours / déjà eu un crédit' : 'Aucun crédit au paravent'}`,
+        `Durée           : ${dossier.duree || '—'}`,
+        `Objet           : ${dossier.objet || '—'}`,
+        `Téléphone       : ${dossier.telephone || '—'}`,
+        `Email           : ${dossier.email || '—'}`,
+        `Adresse         : ${dossier.adresse || '—'}`,
+        `Créé le         : ${fmtDate(dossier.createdAt)}`,
+        ``,
+        `DOCUMENTS UPLOADÉS`,
+        `==========================================`,
+      ];
+
+      for (const tab of ['A','B','C','D']) {
+        const folder = zip.folder(TAB_LABELS_DL[tab]);
+        recap.push(``, `[${TAB_LABELS_DL[tab]}]`);
+
+        if (tab === 'D') {
+          const freeFiles = dossier.files?.['d_litige_free'] || [];
+          if (freeFiles.length === 0) { recap.push('  (aucun justificatif ajouté)'); }
+          freeFiles.forEach((f, i) => {
+            const ext = f.name.split('.').pop();
+            folder.file(`justificatif_${i+1}.${ext}`, f.data.split(',')[1], { base64: true });
+            recap.push(`  ✓ ${f.name}`);
+          });
+        } else {
+          for (const doc of (docs[tab] || [])) {
+            const uploaded = dossier.files?.[doc.id] || [];
+            if (uploaded.length === 0) {
+              recap.push(`  ○ ${doc.label} (non uploadé)`);
+            } else {
+              uploaded.forEach((f, i) => {
+                const ext = f.name.split('.').pop();
+                const safeName = `${doc.label.replace(/[^a-zA-Z0-9 ]/g,'_')}${uploaded.length > 1 ? `_${i+1}` : ''}.${ext}`;
+                folder.file(safeName, f.data.split(',')[1], { base64: true });
+                recap.push(`  ✓ ${doc.label} → ${f.name}`);
+              });
+            }
+          }
+        }
+      }
+
+      zip.file('RECAPITULATIF.txt', recap.join('\n'));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Dossier_${dossier.nomClient.replace(/\s+/g,'_')}_${dossier.numeroDossier || dossier.id.slice(0,8)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(err) {
+      alert('Erreur lors du téléchargement : ' + err.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const docs = getDocsForDossier(dossier.trancheId, dossier.typeClient, dossier.casSousB);
   const completion = calcCompletion(dossier);
@@ -1533,6 +1611,9 @@ function DetailDossier({ dossier, onBack, onUpdate, onDelete }) {
           <StatusBadge completion={completion}/>
         </div>
         <div className="topbar-actions">
+          <button className="btn btn-gold btn-sm" onClick={handleDownload} disabled={downloading}>
+            {downloading ? '⏳ Préparation...' : '⬇ Télécharger le dossier'}
+          </button>
           <button className="btn btn-outline btn-sm" style={{color:'var(--danger)',borderColor:'#FFCDD2'}} onClick={() => setConfirmDelete(true)}>🗑 Supprimer</button>
         </div>
       </div>
